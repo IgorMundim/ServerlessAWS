@@ -9,7 +9,7 @@ export class OrdersAppLayersStack extends cdk.Stack {
 
       const ordersLayer = new lambda.LayerVersion(this, 'OrdersLayer', {
          code: lambda.Code.fromAsset('lambda/orders/layers/ordersLayer'),
-         compatibleRuntime: [lambda.Runtime.NODEJS_16_X],
+         compatibleRuntimes: [lambda.Runtime.NODEJS_16_X],
          layerVersionName: 'OrdersLayer',
          removalPolicy: cdk.RemovalPolicy.DESTROY
       })
@@ -21,7 +21,7 @@ export class OrdersAppLayersStack extends cdk.Stack {
 
       const ordersApiLayer = new lambda.LayerVersion(this, 'OrdersApiLayer', {
          code: lambda.Code.fromAsset('lambda/orders/layers/ordersApiLayer'),
-         compatibleRuntime: [lambda.Runtime.NODEJS_14_X],
+         compatibleRuntimes: [lambda.Runtime.NODEJS_14_X],
          layerVersionName: 'OrdersApiLayer',
          removalPolicy: cdk.RemovalPolicy.RETAIN
       })
@@ -33,7 +33,7 @@ export class OrdersAppLayersStack extends cdk.Stack {
 
          const orderEventsLayer = new lambda.LayerVersion(this, 'OrderEventsLayer', {
          code: lambda.Code.fromAsset('lambda/orders/layers/orderEventsLayer'),
-         compatibleRuntime: [lambda.Runtime.NODEJS_16_X],
+         compatibleRuntimes: [lambda.Runtime.NODEJS_16_X],
          layerVersionName: 'OrderEventsLayer',
          removalPolicy: cdk.RemovalPolicy.RETAIN
       })
@@ -45,7 +45,7 @@ export class OrdersAppLayersStack extends cdk.Stack {
 
       const orderEventsRepositoryLayer = new lambda.LayerVersion(this, 'OrderEventsRepositoryLayer', {
          code: lambda.Code.fromAsset('lambda/orders/layers/orderEventsRepositoryLayer'),
-         compatibleRuntime: [lambda.Runtime.NODEJS_16_X],
+         compatibleRuntimes: [lambda.Runtime.NODEJS_16_X],
          layerVersionName: 'OrderEventsRepositoryLayer',
          removalPolicy: cdk.RemovalPolicy.RETAIN
       })

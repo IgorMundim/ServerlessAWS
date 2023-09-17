@@ -1,7 +1,10 @@
+//https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda-readme.html
 import * as lambda from "aws-cdk-lib/aws-lambda"
 
+//https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda_nodejs-readme.html
 import * as lambdaNodeJS from "aws-cdk-lib/aws-lambda-nodejs"
 
+//https://docs.aws.amazon.com/cdk/api/v2/docs/aws-construct-library.html
 import * as cdk from "aws-cdk-lib"
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb"
 import * as ssm from "aws-cdk-lib/aws-ssm"
@@ -12,6 +15,7 @@ import { Construct } from "constructs"
 interface ProductsAppStackProps extends cdk.StackProps {
    eventsDdb: dynamodb.Table
 }
+
 export class ProductsAppStack extends cdk.Stack {
    readonly productsFetchHandler: lambdaNodeJS.NodejsFunction
    readonly productsAdminHandler: lambdaNodeJS.NodejsFunction
@@ -32,16 +36,28 @@ export class ProductsAppStack extends cdk.Stack {
          writeCapacity: 1
       })
 
+      //Products Layer
       const productsLayerArn = ssm.StringParameter.valueForStringParameter(this, "ProductsLayerVersionArn")
       const productsLayer = lambda.LayerVersion.fromLayerVersionArn(this, "ProductsLayerVersionArn", productsLayerArn)
       
+      //Product Events Layer
       const productEventsLayerArn = ssm.StringParameter.valueForStringParameter(this, "ProductEventsLayerVersionArn")
       const productEventsLayer = lambda.LayerVersion.fromLayerVersionArn(this, "ProductEventsLayerVersionArn", productEventsLayerArn)
 
+      //Auth user info layer
+      const authUserInfoLayerArn = ssm.StringParameter.valueForStringParameter(this, 
+         "AuthUserInfoLayerVersionArn")
+      const authUserInfoLayer = lambda.LayerVersion.fromLayerVersionArn(this, "AuthUserInfoLayerVersionArn",
+         authUserInfoLayerArn)
+
+      const dlq = new sqs.Queue(this, "ProductEventsDlq", {
+         queueName: "product-events-dlq",
+         retentionPeriod: cdk.Duration.days(10)
+      })
       const productEventsHandler = new lambdaNodeJS.NodejsFunction(this, 
-         "ProductEventsFunction", {
+         "ProductsEventsFunction", {
             runtime: lambda.Runtime.NODEJS_16_X,
-            functionName: "ProductEventsFunction",
+            functionName: "ProductsEventsFunction",
             entry: "lambda/products/productEventsFunction.ts",
             handler: "handler",
             memorySize: 128,
@@ -53,11 +69,12 @@ export class ProductsAppStack extends cdk.Stack {
             environment: {
                EVENTS_DDB: props.eventsDdb.tableName
             }, 
-            tracing: lambda.Tracing.ACTIVE,
             layers: [productEventsLayer],
+            tracing: lambda.Tracing.ACTIVE,
+            deadLetterQueueEnabled: true,
+            deadLetterQueue: dlq,
             insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
-         })
-
+      })
       //props.eventsDdb.grantWriteData(productEventsHandler)
       const eventsDdbPolicy = new iam.PolicyStatement({
          effect: iam.Effect.ALLOW,
@@ -69,11 +86,8 @@ export class ProductsAppStack extends cdk.Stack {
             }
          }
       })
-      const dlq = new sqs.Queue(this, "ProductEventsDlq", {
-         queueName: "product-events-dlq",
-         retentionPeriod: cdk.Duration.days(10)
-      })
       productEventsHandler.addToRolePolicy(eventsDdbPolicy)
+
       this.productsFetchHandler = new lambdaNodeJS.NodejsFunction(this, 
          "ProductsFetchFunction", {
             runtime: lambda.Runtime.NODEJS_16_X,
@@ -91,8 +105,6 @@ export class ProductsAppStack extends cdk.Stack {
             }, 
             layers: [productsLayer],
             tracing: lambda.Tracing.ACTIVE,
-            deadLetterQueueEnabled: true,
-            deadLetterQueue: dlq,
             insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
          })
       this.productsDdb.grantReadData(this.productsFetchHandler)
@@ -113,7 +125,7 @@ export class ProductsAppStack extends cdk.Stack {
                PRODUCTS_DDB: this.productsDdb.tableName,
                PRODUCT_EVENTS_FUNCTION_NAME: productEventsHandler.functionName
             },
-            layers: [productsLayer, productEventsLayer],
+            layers: [productsLayer, productEventsLayer, authUserInfoLayer],
             tracing: lambda.Tracing.ACTIVE,
             insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_119_0
          }) 
